@@ -1,7 +1,9 @@
 import csv
+from datetime import datetime
 
 import keras
 import tensorflow as tf
+from keras.callbacks import TensorBoard
 from tensorflow.keras import layers
 
 DATASET = "../reduced-data-set.csv"
@@ -51,26 +53,33 @@ print("Initial preprocessing done, building model...")
 # Create the model
 model = keras.Sequential()
 model.add(layers.Embedding(vocab_length, 256))
-model.add(layers.LSTM(1028))
-model.add(layers.Dropout(0.1))
+model.add(layers.LSTM(1028, return_sequences=True))
+model.add(layers.Dropout(0.2))
+# model.add(layers.LSTM(1028))
+# model.add(layers.Dropout(0.2))
 model.add(layers.Dense(SEQUENCE_LENGTH))
 model.compile(loss=loss, optimizer=optimizer, metrics=["accuracy"])
 
 print(f"Model made, fitting model with {EPOCHS} epochs...")
 
-model.fit(dataset, epochs=EPOCHS)
+log_dir = "logs\\" + datetime.now().strftime("%d-%m-%YT%H%M%S")
+tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
+start = datetime.now()
+
+model.fit(dataset, epochs=EPOCHS, callbacks=[tensorboard])
+
+print(f"Model fitted, took {datetime.now() - start}")
 
 print("Model fitted, generating some text...")
 
 # for input_example_batch, target_example_batch in dataset.take(1):
 input_string = "hallo, mijn naam is Karin en ik ben naar Nederland gefietst omdat ik het hier mooi vind. Vervolgens"
 result = ""
-for _ in range(200):
+for _ in range(400):
     tensor = string_to_ints(tf.strings.unicode_split(input_string[len(result):] + result, input_encoding="UTF-8"))
     tensor = tf.expand_dims(tensor, 0)
     prediction = model(tensor)
     prediction = tf.squeeze(prediction)
-    print(prediction)
     index = tf.math.argmax(prediction)
     print(index)
     result += ints_to_string(index)
