@@ -8,7 +8,7 @@ from tensorflow.keras import layers
 DATASET = "../reduced-data-set.csv"
 SEQUENCE_LENGTH = 100
 BATCH_SIZE = 64
-EPOCHS = 100
+EPOCHS = 20
 
 articles = ""
 # Open and read the csv file containing the data set
@@ -43,7 +43,7 @@ sequences = dataset.batch(SEQUENCE_LENGTH+1, drop_remainder=True)
 
 def map_func(seq):
     # All but the last, all but the first. This serves as input and target for predictions.
-    return seq[:-1], seq[1:]
+    return seq[:-1], seq[-1]
 
 dataset = sequences.map(map_func)
 # for input, target in dataset.take(3):
@@ -52,18 +52,18 @@ dataset = sequences.map(map_func)
 dataset = dataset.shuffle(10000).batch(BATCH_SIZE, drop_remainder=True).prefetch(-1)
 
 vocab_length = len(vocab)
-loss = tf.losses.CategoricalCrossentropy(from_logits=True)
-optimizer = tf.optimizers.Adam(learning_rate=0.01)
+loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+optimizer = tf.optimizers.Adam()
 
 print("Initial preprocessing done, building model...")
 
 # Create the model
 model = keras.Sequential()
-model.add(layers.Embedding(vocab_length, 256, input_length=SEQUENCE_LENGTH))
-model.add(layers.LSTM(512))
+model.add(layers.Embedding(vocab_length, 256))
+model.add(layers.LSTM(1028))
 model.add(layers.Dropout(0.1))
 model.add(layers.Dense(SEQUENCE_LENGTH))
-model.compile(loss=loss, optimizer=optimizer, metrics=["categorical_accuracy"])
+model.compile(loss=loss, optimizer=optimizer, metrics=["accuracy"])
 
 # class TextModel(keras.Model):
 #     def __init__(self, vocab_length, output_dimension, units):
@@ -122,20 +122,23 @@ model.fit(dataset, epochs=EPOCHS)
 print("Model fitted, generating some text...")
 
 # for input_example_batch, target_example_batch in dataset.take(1):
-input_string = "hallo, mijn naam is Karin en ik ben gisteren naar Nede"
+input_string = "hallo, mijn naam is Karin en ik ben naar Nederland gefietst omdat ik het hier mooi vindt. Vervolgens"
 result = ""
-for _ in range(50):
-    example_batch_predictions = model(tf.fill((1, 100), string_to_ints(input_string + result)))
-    index = tf.math.argmax(example_batch_predictions[0])
+for _ in range(20):
+    tensor = string_to_ints(tf.strings.unicode_split(input_string[len(result):] + result, input_encoding="UTF-8"))
+    tensor = tf.expand_dims(tensor, 0)
+    prediction = model(tensor)
+    prediction = tf.squeeze(prediction)
+    print(prediction)
+    index = tf.math.argmax(prediction)
+    print(index)
     result += ints_to_string(index)
 
 print(input_string + result)
 
-    # loss = tf.losses.CategoricalCrossentropy(from_logits=True)
-
-    # example_batch_loss = loss(target_example_batch, example_batch_predictions)
-    # mean_loss = example_batch_loss.numpy().mean()
-    # print("Prediction shape: ", example_batch_predictions.shape,
-    #       " # (batch_size, sequence_length, vocab_length)")
-    # print("Mean loss:        ", mean_loss)
-    # print(tf.exp(mean_loss).numpy())
+# example_batch_loss = loss(target_example_batch, example_batch_predictions)
+# mean_loss = example_batch_loss.numpy().mean()
+# print("Prediction shape: ", example_batch_predictions.shape,
+#       " # (batch_size, sequence_length, vocab_length)")
+# print("Mean loss:        ", mean_loss)
+# print(tf.exp(mean_loss).numpy())
