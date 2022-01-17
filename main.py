@@ -8,8 +8,8 @@ from tensorflow.keras import layers
 
 DATASET = "../reduced-data-set.csv"
 SEQUENCE_LENGTH = 100
-BATCH_SIZE = 64
-EPOCHS = 20
+BATCH_SIZE = 256
+EPOCHS = 1
 
 articles = ""
 # Open and read the csv file containing the data set
@@ -53,16 +53,19 @@ print("Initial preprocessing done, building model...")
 # Create the model
 model = keras.Sequential()
 model.add(layers.Embedding(vocab_length, 256))
-model.add(layers.LSTM(1028, return_sequences=True))
-model.add(layers.Dropout(0.2))
-# model.add(layers.LSTM(1028))
-# model.add(layers.Dropout(0.2))
+model.add(layers.LSTM(768, return_sequences=True))
+model.add(layers.Dropout(0.1))
+model.add(layers.LSTM(768, return_sequences=True))
+model.add(layers.Dropout(0.1))
+model.add(layers.LSTM(768))
+model.add(layers.Dropout(0.1))
 model.add(layers.Dense(SEQUENCE_LENGTH))
 model.compile(loss=loss, optimizer=optimizer, metrics=["accuracy"])
 
 print(f"Model made, fitting model with {EPOCHS} epochs...")
 
-log_dir = "logs\\" + datetime.now().strftime("%d-%m-%YT%H%M%S")
+datetime_string = datetime.now().strftime("%d-%m-%YT%H-%M-%S")
+log_dir = "logs\\" + datetime_string
 tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
 start = datetime.now()
 
@@ -70,10 +73,12 @@ model.fit(dataset, epochs=EPOCHS, callbacks=[tensorboard])
 
 print(f"Model fitted, took {datetime.now() - start}")
 
+model.save(f"saved_models\\model_{datetime_string}")
+
 print("Model fitted, generating some text...")
 
 # for input_example_batch, target_example_batch in dataset.take(1):
-input_string = "hallo, mijn naam is Karin en ik ben naar Nederland gefietst omdat ik het hier mooi vind. Vervolgens"
+input_string = "Hoewel de meeste coronapatienten naar Groningen verhuisden, bleven een aantal bewoners op hun plek. "
 result = ""
 for _ in range(400):
     tensor = string_to_ints(tf.strings.unicode_split(input_string[len(result):] + result, input_encoding="UTF-8"))
@@ -81,7 +86,6 @@ for _ in range(400):
     prediction = model(tensor)
     prediction = tf.squeeze(prediction)
     index = tf.math.argmax(prediction)
-    print(index)
     result += ints_to_string(index)
 
 print(input_string + result)
