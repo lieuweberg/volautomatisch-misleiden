@@ -1,15 +1,17 @@
 import csv
 from datetime import datetime
+import os
+import sys
 
 import keras
 import tensorflow as tf
-from keras.callbacks import TensorBoard
+from keras.callbacks import TensorBoard, ModelCheckpoint
 from tensorflow.keras import layers
 
 DATASET = "../reduced-data-set.csv"
 SEQUENCE_LENGTH = 100
 BATCH_SIZE = 256
-EPOCHS = 1
+EPOCHS = 100
 
 articles = ""
 # Open and read the csv file containing the data set
@@ -62,25 +64,37 @@ model.add(layers.Dropout(0.1))
 model.add(layers.Dense(SEQUENCE_LENGTH))
 model.compile(loss=loss, optimizer=optimizer, metrics=["accuracy"])
 
-print(f"Model made, fitting model with {EPOCHS} epochs...")
+model.summary()
 
-datetime_string = datetime.now().strftime("%d-%m-%YT%H-%M-%S")
-log_dir = "logs\\" + datetime_string
-tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
-start = datetime.now()
+if len(sys.argv) > 0:
+    print(f"\n\nCommand line argument found, importing model from path \"{sys.argv[1]}\"\n\n")
+    model.load_weights(sys.argv[1])
+    print("Model restored. Evaluating...")
+    # model.evaluate(dataset)
+    print("Model evaluated. Generating text...\n\n")
+else:
+    print(f"\n\nModel made, fitting model with {EPOCHS} epochs...\n\n")
 
-model.fit(dataset, epochs=EPOCHS, callbacks=[tensorboard])
+    datetime_string = datetime.now().strftime("%d-%m-%YT%H-%M-%S")
+    log_dir = "logs\\" + datetime_string
+    tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-print(f"Model fitted, took {datetime.now() - start}")
+    checkpoint_path = os.path.join("./checkpoints", "ckpt_e{epoch}_l{loss}")
+    checkpoints = ModelCheckpoint(checkpoint_path, save_weights_only=True)
 
-model.save(f"saved_models\\model_{datetime_string}")
+    start = datetime.now()
 
-print("Model fitted, generating some text...")
+    model.fit(dataset, epochs=EPOCHS, callbacks=[tensorboard, checkpoints])
 
-# for input_example_batch, target_example_batch in dataset.take(1):
+    print(f"\n\nModel fitted, took {datetime.now() - start}. Saving model...")
+
+    model.save(f"saved_models\\model_{datetime_string}")
+
+    print("Model saved, generating some text...\n\n")
+
 input_string = "Hoewel de meeste coronapatienten naar Groningen verhuisden, bleven een aantal bewoners op hun plek. "
 result = ""
-for _ in range(400):
+for i in range(800):
     tensor = string_to_ints(tf.strings.unicode_split(input_string[len(result):] + result, input_encoding="UTF-8"))
     tensor = tf.expand_dims(tensor, 0)
     prediction = model(tensor)
@@ -88,4 +102,27 @@ for _ in range(400):
     index = tf.math.argmax(prediction)
     result += ints_to_string(index)
 
-print(input_string + result)
+    if i % 200 == 0 and i > 0:
+        print(input_string + result)
+
+print("All text generated.\n\nResult: " + input_string + result)
+
+### Generate the next word prediction
+# start = datetime.now()
+# input_string = " "*100 + "PUT INPUT HERE" + " "
+# input_string = input_string[len(input_string)-100:]
+# result = ""
+# for i in range(800):
+#     tensor = string_to_ints(tf.strings.unicode_split(input_string[len(result):] + result, input_encoding="UTF-8"))
+#     tensor = tf.expand_dims(tensor, 0)
+#     prediction = model(tensor)
+#     prediction = tf.squeeze(prediction)
+#     index = tf.math.argmax(prediction)
+#     if ints_to_string(index) == " ":
+#         break
+#     result += ints_to_string(index)
+
+#     if i % 200 == 0 and i > 0:
+#         print(input_string + result)
+
+# print(f"All text generated, took {datetime.now() - start}\n\nResult: " + input_string + result)
