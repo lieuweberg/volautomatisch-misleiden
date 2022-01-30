@@ -1,11 +1,11 @@
 import csv
-from datetime import datetime
 import os
 import sys
+from datetime import datetime
 
 import keras
 import tensorflow as tf
-from keras.callbacks import TensorBoard, ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, TensorBoard
 from tensorflow.keras import layers
 
 DATASET = "../reduced-data-set.csv"
@@ -15,7 +15,6 @@ EPOCHS = 100
 
 articles = ""
 # Open and read the csv file containing the data set
-# LINK https://docs.python.org/3/library/csv.html
 with open(DATASET, newline="", encoding="utf8") as csvfile:
     reader = csv.reader(csvfile)
     # row: title, content, category
@@ -24,7 +23,6 @@ with open(DATASET, newline="", encoding="utf8") as csvfile:
             continue
         articles += row[1]
 
-# 10000 to make sure all the characters are added. Processing time is fast enough, so a high number doesn't really matter.
 vocab = sorted(set(articles))
 print("Vocab size:", len(vocab))
 string_to_ints = layers.StringLookup(vocabulary=vocab)
@@ -40,7 +38,7 @@ dataset = tf.data.Dataset.from_tensor_slices(raw_data)
 sequences = dataset.batch(SEQUENCE_LENGTH+1, drop_remainder=True)
 
 def map_func(seq):
-    # All but the last, all but the first. This serves as input and target for predictions.
+    # All but the last, the last. This serves as input and target for predictions.
     return seq[:-1], seq[-1]
 
 dataset = sequences.map(map_func)
@@ -92,7 +90,9 @@ else:
 
     print("Model saved, generating some text...\n\n")
 
-input_string = "Hoewel de meeste coronapatienten naar Groningen verhuisden, bleven een aantal bewoners op hun plek. "
+start = datetime.now()
+
+input_string = "Hoewel het nog niet duidelijk is wie de moord gepleegd heeft, is de politie"
 result = ""
 for i in range(800):
     tensor = string_to_ints(tf.strings.unicode_split(input_string[len(result):] + result, input_encoding="UTF-8"))
@@ -100,29 +100,14 @@ for i in range(800):
     prediction = model(tensor)
     prediction = tf.squeeze(prediction)
     index = tf.math.argmax(prediction)
+    
+    ### Single word prediction
+    # if ints_to_string(index) == " ":
+    #     break
+
     result += ints_to_string(index)
 
     if i % 200 == 0 and i > 0:
         print(input_string + result)
 
-print("All text generated.\n\nResult: " + input_string + result)
-
-### Generate the next word prediction
-# start = datetime.now()
-# input_string = " "*100 + "PUT INPUT HERE" + " "
-# input_string = input_string[len(input_string)-100:]
-# result = ""
-# for i in range(800):
-#     tensor = string_to_ints(tf.strings.unicode_split(input_string[len(result):] + result, input_encoding="UTF-8"))
-#     tensor = tf.expand_dims(tensor, 0)
-#     prediction = model(tensor)
-#     prediction = tf.squeeze(prediction)
-#     index = tf.math.argmax(prediction)
-#     if ints_to_string(index) == " ":
-#         break
-#     result += ints_to_string(index)
-
-#     if i % 200 == 0 and i > 0:
-#         print(input_string + result)
-
-# print(f"All text generated, took {datetime.now() - start}\n\nResult: " + input_string + result)
+print(f"\nAll text generated, took {datetime.now() - start}\n\nResult: " + input_string + result)
