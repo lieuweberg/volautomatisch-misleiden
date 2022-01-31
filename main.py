@@ -8,7 +8,7 @@ import tensorflow as tf
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from tensorflow.keras import layers
 
-DATASET = "../reduced-data-set.csv"
+DATASET = "./reduced-data-set.csv"
 SEQUENCE_LENGTH = 100
 BATCH_SIZE = 256
 EPOCHS = 100
