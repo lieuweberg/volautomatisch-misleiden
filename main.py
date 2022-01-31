@@ -64,7 +64,7 @@ model.compile(loss=loss, optimizer=optimizer, metrics=["accuracy"])
 
 model.summary()
 
-if len(sys.argv) > 0:
+if len(sys.argv) > 1:
     print(f"\n\nCommand line argument found, importing model from path \"{sys.argv[1]}\"\n\n")
     model.load_weights(sys.argv[1])
     print("Model restored. Evaluating...")
